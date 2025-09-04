@@ -48,6 +48,22 @@ whale_cache.json
 .DS_Store
 Thumbs.db
 
+# Frontend build and cache
+frontend/node_modules/
+frontend/.next/
+frontend/.vercel/
+
+# Frontend local env
+frontend/.env.local
+frontend/.env.*.local
+
+# Root local env variants
+.env.local
+.env.*.local
+
+# Supabase local project link/config
+.supabase/
+
 # Additional Python gitignore content
 share/python-wheels/
 *.egg-info/
@@ -234,3 +250,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Codex coding assistant
+AGENTS.md
+
+.claude/

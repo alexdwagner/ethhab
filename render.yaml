@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: whale-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ETH_RPC_URL
+        sync: false
+      - key: ETHERSCAN_API_KEY
+        sync: false
+      - key: COINGECKO_API_KEY
+        sync: false
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: DEV_DEBUG
+        value: "0"
+
+  - type: cron
+    name: whale-refresh-cron
+    env: docker
+    schedule: "10 0 * * *" # 00:10 UTC daily
+    plan: free
+    dockerCommand: |
+      bash -lc 'curl -sS -X POST \
+        -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"top\":100,\"hours\":720,\"price_days\":90,\"metrics_days\":90,\"activity_days\":90,\"time_budget\":240}" \
+        https://$BACKEND_HOST/admin/refresh && echo "\n[cron] refresh done"'
+    envVars:
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: BACKEND_HOST
+        fromService:
+          type: web
+          name: whale-backend
+          property: host
+
