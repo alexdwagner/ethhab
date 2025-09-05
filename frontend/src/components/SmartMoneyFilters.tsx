@@ -7,13 +7,15 @@ type Props = {
   defaultPricedOnly: boolean;
   defaultMinCoverage: number;
   defaultMinTrades: number;
+  defaultWatchlist?: boolean;
 };
 
-export default function SmartMoneyFilters({ defaultSort, defaultPricedOnly, defaultMinCoverage, defaultMinTrades }: Props) {
+export default function SmartMoneyFilters({ defaultSort, defaultPricedOnly, defaultMinCoverage, defaultMinTrades, defaultWatchlist }: Props) {
   const [sort, setSort] = useState<string>(defaultSort || 'sharpe');
   const [pricedOnly, setPricedOnly] = useState<boolean>(defaultPricedOnly ?? true);
   const [minCoverage, setMinCoverage] = useState<number>(defaultMinCoverage ?? 60);
   const [minTrades, setMinTrades] = useState<number>(defaultMinTrades ?? 5);
+  const [watchlistOnly, setWatchlistOnly] = useState<boolean>(!!defaultWatchlist);
 
   function apply() {
     const params = new URLSearchParams();
@@ -21,6 +23,7 @@ export default function SmartMoneyFilters({ defaultSort, defaultPricedOnly, defa
     params.set('priced_only', pricedOnly ? '1' : '0');
     params.set('min_coverage', String(minCoverage));
     params.set('min_priced_trades', String(minTrades));
+    if (watchlistOnly) params.set('watchlist', '1');
     window.location.href = `/smart-money?${params.toString()}`;
   }
 
@@ -43,12 +46,16 @@ export default function SmartMoneyFilters({ defaultSort, defaultPricedOnly, defa
           <option value="last_activity">Last Active</option>
         </select>
       </label>
-      <label className="flex items-center gap-2">
+      <label className="flex items-center gap-2" title="Only include rows with priced trades; enables Sharpe/PnL sorting">
         <input type="checkbox" checked={pricedOnly} onChange={(e) => setPricedOnly(e.target.checked)} />
         <span className="text-gray-600">Priced only</span>
       </label>
+      <label className="flex items-center gap-2" title="Limit to qualified watchlist entries">
+        <input type="checkbox" checked={watchlistOnly} onChange={(e) => setWatchlistOnly(e.target.checked)} />
+        <span className="text-gray-600">Watchlist only</span>
+      </label>
       <label className="flex items-center gap-1">
-        <span className="text-gray-600">Min coverage</span>
+        <span className="text-gray-600" title="Priced trades share over total swaps in 90d">Min coverage</span>
         <input
           type="number"
           min={0}
@@ -61,7 +68,7 @@ export default function SmartMoneyFilters({ defaultSort, defaultPricedOnly, defa
         <span className="text-gray-600">%</span>
       </label>
       <label className="flex items-center gap-1">
-        <span className="text-gray-600">Min trades</span>
+        <span className="text-gray-600" title="Minimum number of priced trades in 90d">Min trades</span>
         <input
           type="number"
           min={0}
@@ -76,4 +83,3 @@ export default function SmartMoneyFilters({ defaultSort, defaultPricedOnly, defa
     </div>
   );
 }
-

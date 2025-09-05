@@ -80,6 +80,10 @@ class WhaleAPIHandler(BaseHTTPRequestHandler):
                 self.serve_health_db_write()
             elif path == '/smart-money':
                 self.serve_smart_money()
+            elif path == '/smart-money/stats':
+                self.serve_smart_money_stats()
+            elif path == '/admin/db-stats':
+                self.serve_admin_db_stats()
             elif path == '/debug':
                 self.serve_debug()
             else:
@@ -327,6 +331,95 @@ class WhaleAPIHandler(BaseHTTPRequestHandler):
             payload['db']['error'] = str(e)
 
         self.send_json_response(payload, status=200)
+
+    def serve_smart_money_stats(self):
+        """Return lightweight stats for Smart Money summary (D-023)."""
+        if not smart_money_repository:
+            self.send_json_response({'error': 'Smart money repository not available'}, status=503)
+            return
+
+        try:
+            client = supabase_client.get_client()
+            # Watchlist count
+            wl = client.table('smart_money_candidates').select('id', count='exact').eq('qualifies_smart_money', True).execute()
+            watchlist_count = wl.count or 0
+
+            # Recent active in the last 24h from address_activity
+            from datetime import timedelta
+            cutoff = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+            ra = client.table('address_activity').select('address', count='exact').gte('last_activity_at', cutoff).execute()
+            recent_active_24h = ra.count or 0
+
+            # Average swaps among watchlist (use dex_swaps_90d where available)
+            wl_rows = client.table('smart_money_candidates').select('dex_swaps_90d').eq('qualifies_smart_money', True).limit(500).execute()
+            swaps = [int(r.get('dex_swaps_90d') or 0) for r in (wl_rows.data or [])]
+            avg_swaps_90d = round(sum(swaps) / len(swaps), 2) if swaps else 0
+
+            payload = {
+                'watchlist_count': watchlist_count,
+                'recent_active_24h': recent_active_24h,
+                'avg_swaps_90d': avg_swaps_90d,
+                'generated_at': datetime.utcnow().isoformat(),
+            }
+            self.send_json_response(payload)
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, status=500)
+
+    def serve_admin_db_stats(self):
+        """Protected DB stats: qualified counts under gate presets."""
+        # Auth
+        auth = self.headers.get('Authorization', '')
+        admin_token = os.getenv('ADMIN_API_TOKEN', '')
+        if not admin_token or not auth.startswith('Bearer ') or auth.split(' ', 1)[1].strip() != admin_token:
+            self.send_json_response({'error': 'Forbidden'}, status=403)
+            return
+
+        # Params
+        from urllib.parse import parse_qs, urlparse
+        qs = parse_qs(urlparse(self.path).query)
+        def _int(name, default):
+            try:
+                return int((qs.get(name, [str(default)])[0]))
+            except Exception:
+                return default
+        def _float(name, default):
+            try:
+                return float((qs.get(name, [str(default)])[0]))
+            except Exception:
+                return default
+
+        strict_trades = _int('strict_trades', 5)
+        strict_cov = _float('strict_cov', 60)
+        loose_trades = _int('loose_trades', 3)
+        loose_cov = _float('loose_cov', 40)
+
+        try:
+            client = supabase_client.get_client()
+            # Strict
+            s = client.table('smart_money_candidates').select('id', count='exact') \
+                .gte('priced_trades_count', strict_trades) \
+                .gte('coverage_pct', strict_cov).execute()
+            # Loose
+            l = client.table('smart_money_candidates').select('id', count='exact') \
+                .gte('priced_trades_count', loose_trades) \
+                .gte('coverage_pct', loose_cov).execute()
+            # Watchlist strict
+            ws = client.table('smart_money_candidates').select('id', count='exact') \
+                .eq('qualifies_smart_money', True) \
+                .gte('priced_trades_count', strict_trades) \
+                .gte('coverage_pct', strict_cov).execute()
+
+            self.send_json_response({
+                'qualified_strict': s.count or 0,
+                'qualified_loose': l.count or 0,
+                'watchlist_strict': ws.count or 0,
+                'strict_trades': strict_trades,
+                'strict_cov': strict_cov,
+                'loose_trades': loose_trades,
+                'loose_cov': loose_cov,
+            })
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, status=500)
 
     def serve_admin_refresh(self):
         """Protected admin endpoint to run the refresh pipeline (D-027)."""

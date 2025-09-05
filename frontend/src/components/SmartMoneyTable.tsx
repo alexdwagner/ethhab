@@ -114,10 +114,10 @@ export default function SmartMoneyTable({ items }: Props) {
           <thead className="bg-gray-50">
             <tr>
               <SortHeader label="ENS / Address" k="address" />
-              <SortHeader label="Swaps (90d)" k="dex_swaps_90d" align="right" />
-              <SortHeader label="Protocols" k="unique_protocols_90d" align="right" />
-              <SortHeader label="Sharpe" k="sharpe_ratio" align="right" />
-              <SortHeader label="Last Active" k="last_activity_at" align="right" />
+              <th className="px-3 py-2 font-medium text-gray-600 text-right" title="Number of DEX swaps seen in 90d">Swaps (90d)</th>
+              <th className="px-3 py-2 font-medium text-gray-600 text-right" title="Unique DEX protocols touched in 90d">Protocols</th>
+              <th className="px-3 py-2 font-medium text-gray-600 text-right" title="Risk-adjusted performance from priced trades (90d)">Sharpe</th>
+              <th className="px-3 py-2 font-medium text-gray-600 text-right" title="Most recent activity timestamp">Last Active</th>
               <th className="px-3 py-2 text-right font-medium text-gray-600">Signals</th>
               <th className="px-3 py-2 text-right font-medium text-gray-600">Actions</th>
             </tr>

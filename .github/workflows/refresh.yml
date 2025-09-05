@@ -1,0 +1,27 @@
+name: Refresh Smart Money
+
+on:
+  schedule:
+    - cron: '10 0 * * *' # 00:10 UTC daily
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger admin refresh
+        env:
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: |
+          if [ -z "$ADMIN_API_TOKEN" ] || [ -z "$BACKEND_URL" ]; then
+            echo "Missing secrets: ADMIN_API_TOKEN and/or BACKEND_URL" 1>&2
+            exit 1
+          fi
+          echo "Calling $BACKEND_URL/admin/refresh"
+          curl -sS -X POST \
+            -H "Authorization: Bearer $ADMIN_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"top":100,"hours":720,"price_days":90,"metrics_days":90,"activity_days":90,"time_budget":240}' \
+            "$BACKEND_URL/admin/refresh" | sed -e 's/.*/[response] &/'
+

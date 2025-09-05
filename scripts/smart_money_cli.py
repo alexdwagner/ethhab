@@ -412,6 +412,34 @@ def cmd_refresh(args: argparse.Namespace):
     print("✅ Refresh pipeline complete")
 
 
+def cmd_stats(args: argparse.Namespace):
+    """Print qualified counts under strict/loose gates using Supabase client (no DB password)."""
+    from src.data.supabase_client import supabase_client as sc
+    if not sc:
+        print("❌ Supabase client not initialized")
+        return
+    client = sc.get_client()
+    # Build queries from args
+    strict_trades = int(args.strict_trades)
+    strict_cov = float(args.strict_cov)
+    loose_trades = int(args.loose_trades)
+    loose_cov = float(args.loose_cov)
+    queries = [
+        ("qualified_strict",
+         f"SELECT COUNT(*) AS qualified_strict FROM smart_money_candidates WHERE priced_trades_count >= {strict_trades} AND coverage_pct >= {strict_cov};"),
+        ("qualified_loose",
+         f"SELECT COUNT(*) AS qualified_loose FROM smart_money_candidates WHERE priced_trades_count >= {loose_trades} AND coverage_pct >= {loose_cov};"),
+        ("watchlist_strict",
+         f"SELECT COUNT(*) AS watchlist_strict FROM smart_money_candidates WHERE qualifies_smart_money=TRUE AND priced_trades_count >= {strict_trades} AND coverage_pct >= {strict_cov};"),
+    ]
+    for name, q in queries:
+        try:
+            res = client.rpc('sql', {'query': q}).execute()
+            print(name, res.data)
+        except Exception as e:
+            print(name, 'error:', e)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Smart Money Discovery CLI")
     sub = p.add_subparsers(dest="command")
@@ -488,6 +516,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--quiet", action="store_true")
     sp.add_argument("--debug", action="store_true")
     sp.set_defaults(func=cmd_refresh)
+
+    sp = sub.add_parser("stats", help="Show qualified counts under gate presets")
+    sp.add_argument("--strict-trades", type=int, default=5)
+    sp.add_argument("--strict-cov", type=float, default=60)
+    sp.add_argument("--loose-trades", type=int, default=3)
+    sp.add_argument("--loose-cov", type=float, default=40)
+    sp.set_defaults(func=cmd_stats)
 
     sp = sub.add_parser("ens", help="Resolve ENS for addresses and cache results")
     sp.add_argument("--address", help="Single address")

@@ -2,7 +2,8 @@ import SmartMoneyTable from "@/components/SmartMoneyTable";
 import SmartMoneyFilters from "@/components/SmartMoneyFilters";
 import SmartMoneyPresets from "@/components/SmartMoneyPresets";
 import SmartMoneyExport from "@/components/SmartMoneyExport";
-import { getHealth, getSmartMoney } from "@/lib/backend";
+import SmartMoneySummary from "@/components/SmartMoneySummary";
+import { getHealth, getSmartMoney, getSmartMoneyStats } from "@/lib/backend";
 import { adaptSmartMoneyItem } from "@/lib/adapters";
 
 export const dynamic = "force-dynamic"; // ensure fresh data on each request
@@ -15,12 +16,16 @@ export default async function SmartMoneyPage({ searchParams }: { searchParams?: 
   const priced_only = sp.priced_only !== undefined
     ? ['1','true','yes','on'].includes((sp.priced_only || '').toLowerCase())
     : true;
+  const watchlistOnly = sp.watchlist !== undefined
+    ? ['1','true','yes','on'].includes((sp.watchlist || '').toLowerCase())
+    : false;
   const min_coverage = sp.min_coverage ? Number(sp.min_coverage) : 60;
   const min_trades = sp.min_priced_trades ? Number(sp.min_priced_trades) : 5;
 
   const res = await getSmartMoney({
     limit: 50,
     // Include candidates by default to increase useful results; gates constrain quality
+    watchlist: watchlistOnly,
     sort: sort as any,
     priced_only,
     min_coverage,
@@ -29,6 +34,7 @@ export default async function SmartMoneyPage({ searchParams }: { searchParams?: 
   const items = (res.items || []).map(adaptSmartMoneyItem);
   const debug = searchParams?.debug === '1' || process.env.NODE_ENV !== 'production';
   const health = debug ? await getHealth().catch(() => null) : null;
+  const summary = await getSmartMoneyStats().catch(() => null);
 
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-4">
@@ -50,8 +56,17 @@ export default async function SmartMoneyPage({ searchParams }: { searchParams?: 
           defaultPricedOnly={priced_only}
           defaultMinCoverage={min_coverage}
           defaultMinTrades={min_trades}
+          defaultWatchlist={watchlistOnly}
         />
       </div>
+      {summary && (
+        <SmartMoneySummary
+          watchlistCount={summary.watchlist_count}
+          recentActive24h={summary.recent_active_24h}
+          avgSwaps90d={summary.avg_swaps_90d}
+          generatedAt={summary.generated_at}
+        />
+      )}
       <div className="flex items-center justify-between text-sm">
         <div>
           {items.length < 10 && (
