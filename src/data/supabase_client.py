@@ -29,71 +29,25 @@ class SupabaseClient:
         return self.client
     
     def create_tables(self):
-        """Create database schema by executing SQL directly"""
-        
+        """Guide schema creation. DDL is not supported via PostgREST.
+
+        Supabase's REST API cannot execute CREATE TABLE statements. Apply the
+        SQL in `scripts/supabase_production_schema.sql` (and migrations under
+        `supabase/migrations/`) using the Supabase SQL Editor or the Supabase CLI.
+        """
         print("🏗️  Creating database schema...")
-        
+        print("ℹ️  DDL cannot be run via Supabase REST. Use one of:")
+        print("  - Supabase SQL Editor: open scripts/supabase_production_schema.sql and run it")
+        print("  - Supabase CLI: `supabase db push` with the migrations in ./supabase/migrations")
+
+        # Best-effort check: do tables already exist?
         try:
-            # Create whales table
-            self.client.rpc('sql', {'query': '''
-                CREATE TABLE IF NOT EXISTS whales (
-                    id SERIAL PRIMARY KEY,
-                    address VARCHAR(42) UNIQUE NOT NULL,
-                    label VARCHAR(255),
-                    balance_eth DECIMAL(20,8) DEFAULT 0,
-                    balance_usd DECIMAL(20,2) DEFAULT 0,
-                    entity_type VARCHAR(100),
-                    category VARCHAR(100),
-                    first_seen_at TIMESTAMPTZ DEFAULT NOW(),
-                    last_updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            '''}).execute()
-            
-            print("✅ Whales table created")
-            
-            # Create ROI scores table
-            self.client.rpc('sql', {'query': '''
-                CREATE TABLE IF NOT EXISTS whale_roi_scores (
-                    id SERIAL PRIMARY KEY,
-                    whale_id INTEGER REFERENCES whales(id) ON DELETE CASCADE,
-                    address VARCHAR(42) NOT NULL,
-                    composite_score DECIMAL(5,2) DEFAULT 0,
-                    roi_score DECIMAL(5,2) DEFAULT 0,
-                    volume_score DECIMAL(5,2) DEFAULT 0,
-                    consistency_score DECIMAL(5,2) DEFAULT 0,
-                    risk_score DECIMAL(5,2) DEFAULT 0,
-                    activity_score DECIMAL(5,2) DEFAULT 0,
-                    efficiency_score DECIMAL(5,2) DEFAULT 0,
-                    total_trades INTEGER DEFAULT 0,
-                    avg_roi_percent DECIMAL(10,4) DEFAULT 0,
-                    win_rate_percent DECIMAL(10,4) DEFAULT 0,
-                    total_volume_usd DECIMAL(20,2) DEFAULT 0,
-                    sharpe_ratio DECIMAL(6,3) DEFAULT 0,
-                    max_drawdown_percent DECIMAL(6,2) DEFAULT 0,
-                    calculated_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    
-                    UNIQUE(whale_id),
-                    UNIQUE(address)
-                );
-            '''}).execute()
-            
-            print("✅ ROI scores table created")
-            
-            # Create indexes
-            self.client.rpc('sql', {'query': '''
-                CREATE INDEX IF NOT EXISTS idx_whales_address ON whales(address);
-                CREATE INDEX IF NOT EXISTS idx_whales_balance_eth ON whales(balance_eth DESC);
-                CREATE INDEX IF NOT EXISTS idx_roi_composite ON whale_roi_scores(composite_score DESC);
-            '''}).execute()
-            
-            print("✅ Database indexes created")
-            print("✅ Supabase schema created successfully")
+            self.client.table('whales').select('id').limit(1).execute()
+            self.client.table('whale_roi_scores').select('id').limit(1).execute()
+            print("✅ Tables appear to exist already")
             return True
-            
-        except Exception as e:
-            print(f"❌ Error creating Supabase schema: {e}")
+        except Exception:
+            print("❌ Tables not found yet. Please apply the SQL schema as noted above.")
             return False
     
     def test_connection(self) -> bool:

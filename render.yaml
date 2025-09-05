@@ -17,7 +17,7 @@ services:
         sync: false
       - key: ETHERSCAN_API_KEY
         sync: false
-      - key: COINGECKO_API_KEY
+      - key: ZEROX_SWAP_API_KEY
         sync: false
       - key: ADMIN_API_TOKEN
         sync: false
@@ -43,4 +43,3 @@ services:
           type: web
           name: whale-backend
           property: host
-

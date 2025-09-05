@@ -38,11 +38,20 @@ def main():
     
     # Create schema
     print("\n🏗️  Creating database schema...")
-    if supabase_client.create_tables():
-        print("✅ Database schema created successfully")
-    else:
-        print("❌ Failed to create database schema")
+    created = supabase_client.create_tables()
+    if not created:
+        print("\nNext steps to create schema:")
+        print("1) Supabase SQL Editor (quick):")
+        print("   - Open scripts/supabase_production_schema.sql")
+        print("   - Copy/paste into Supabase SQL Editor and run")
+        print("   - Optional: also run supabase/migrations/*_smart_money_schema.sql")
+        print("2) Supabase CLI (managed migrations):")
+        print("   - Install CLI: https://supabase.com/docs/guides/cli")
+        print("   - supabase link --project-ref <your-project-ref>")
+        print("   - supabase db push")
         return False
+    else:
+        print("✅ Database schema created successfully")
     
     print("\n🎉 Supabase setup complete!")
     print("\nNext steps:")

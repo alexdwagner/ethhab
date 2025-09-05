@@ -111,7 +111,7 @@ Steps
   - `SUPABASE_SERVICE_ROLE_KEY` (service role key)
   - `ETH_RPC_URL` (Alchemy RPC URL) or set `ALCHEMY_API_KEY`
   - `ETHERSCAN_API_KEY` (optional)
-  - `COINGECKO_API_KEY` (optional)
+  - `ZEROX_SWAP_API_KEY` (optional, 0x rate limits)
   - `ADMIN_API_TOKEN` (random string to protect `POST /admin/refresh`)
   - `DEV_DEBUG=0`
 - The cron service `whale-refresh-cron` will call `https://<backend>/admin/refresh` daily.

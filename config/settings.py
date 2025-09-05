@@ -28,8 +28,12 @@ class Config:
     ETHERSCAN_API_KEY = os.getenv('ETHERSCAN_API_KEY', '')
     ALCHEMY_API_KEY = os.getenv('ALCHEMY_API_KEY', '')
     ETH_RPC_URL = os.getenv('ETH_RPC_URL', f'https://eth-mainnet.g.alchemy.com/v2/{os.getenv("ALCHEMY_API_KEY", "")}')
-    COINGECKO_API_KEY = os.getenv('COINGECKO_API_KEY', '')
-    
+    # 0x Swap API key (optional for higher rate limits)
+    # Canonical var: ZEROX_SWAP_API_KEY
+    ZEROX_SWAP_API_KEY = os.getenv('ZEROX_SWAP_API_KEY', '')
+    # Backward-compat alias
+    ZEROX_API_KEY = ZEROX_SWAP_API_KEY or os.getenv('ZEROX_API_KEY', '')
+
     # Whale tracking
     WHALE_THRESHOLD = float(os.getenv('WHALE_THRESHOLD', '1000'))
 

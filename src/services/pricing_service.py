@@ -23,33 +23,34 @@ class PricingService:
         self.etherscan_key = getattr(config, 'ETHERSCAN_API_KEY', '')
         self.disable_network = getattr(config, 'SMART_MONEY_DISABLE_NETWORK', False)
         self.request_timeout = getattr(config, 'SMART_MONEY_BACKFILL_REQUEST_TIMEOUT_SEC', 8.0)
+        # Optional external price API (current spot only). Uses 0x public price endpoint.
+        # Set env SMART_MONEY_DISABLE_NETWORK=1 to fully disable external calls.
+        self.enable_price_api = not getattr(config, 'SMART_MONEY_DISABLE_NETWORK', False)
         # Hardcoded stablecoins for mainnet (address -> decimals)
         self.stablecoins: Dict[str, int] = {
             '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': 6,   # USDC
             '0xdac17f958d2ee523a2206206994597c13d831ec7': 6,   # USDT
             '0x6b175474e89094c44da98b954eedeac495271d0f': 18,  # DAI
         }
-        # Leading tokens (decimals + coingecko id) for simple pricing
+        # Leading tokens (address -> decimals) used for parsing logs.
+        # Pricing without external APIs will fall back to stable legs only.
         self.token_info: Dict[str, Tuple[int, str]] = {
-            # address: (decimals, coingecko_id)
-            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': (18, 'weth'),     # WETH
-            '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': (8, 'wrapped-bitcoin'),  # WBTC
-            '0x514910771af9ca656af840dff83e8264ecf986ca': (18, 'chainlink'),       # LINK
-            '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': (18, 'uniswap'),         # UNI
-            '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9': (18, 'aave'),            # AAVE
-            # Coverage expansion (D-026)
-            '0x5a98fcbea516cf06857215779fd812ca3bef1b32': (18, 'lido-dao'),       # LDO
-            '0xae7ab96520de3a18e5e111b5eaab095312d7fe84': (18, 'staked-ether'),   # stETH
-            '0xae78736cd615f374d3085123a210448e74fc6393': (18, 'rocket-pool-eth'),# rETH
-            '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2': (18, 'maker'),          # MKR
-            '0xc011a72400e58ecd99ee497cf89e3775d4bd732f': (18, 'havven'),         # SNX (coingecko id: synthetix-network-token also commonly 'havven')
-            '0xd533a949740bb3306d119cc777fa900ba034cd52': (18, 'curve-dao-token'),# CRV
-            '0xba100000625a3754423978a60c9317c58a424e3d': (18, 'balancer'),       # BAL
-            '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce': (18, 'shiba-inu'),      # SHIB
-            '0x6982508145454ce325ddbe47a25d4ec3d2311933': (18, 'pepe'),           # PEPE
-            '0x912ce59144191c1204e64559fe8253a0e49e6548': (18, 'arbitrum'),       # ARB
-            # Note: OP token (Optimism) on Ethereum mainnet address:
-            '0x0a3f6849f78076aefaDf113F5BED87720274dDC0': (18, 'optimism'),       # OP (mainnet bridged token)
+            '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': (18, ''),  # WETH
+            '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': (8, ''),   # WBTC
+            '0x514910771af9ca656af840dff83e8264ecf986ca': (18, ''),  # LINK
+            '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': (18, ''),  # UNI
+            '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9': (18, ''),  # AAVE
+            '0x5a98fcbea516cf06857215779fd812ca3bef1b32': (18, ''),  # LDO
+            '0xae7ab96520de3a18e5e111b5eaab095312d7fe84': (18, ''),  # stETH
+            '0xae78736cd615f374d3085123a210448e74fc6393': (18, ''),  # rETH
+            '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2': (18, ''),  # MKR
+            '0xc011a72400e58ecd99ee497cf89e3775d4bd732f': (18, ''),  # SNX
+            '0xd533a949740bb3306d119cc777fa900ba034cd52': (18, ''),  # CRV
+            '0xba100000625a3754423978a60c9317c58a424e3d': (18, ''),  # BAL
+            '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce': (18, ''),  # SHIB
+            '0x6982508145454ce325ddbe47a25d4ec3d2311933': (18, ''),  # PEPE
+            '0x912ce59144191c1204e64559fe8253a0e49e6548': (18, ''),  # ARB
+            '0x0a3f6849f78076aefaDf113F5BED87720274dDC0': (18, ''),  # OP
         }
 
     def price_address(self, address: str, days: int = 90, time_budget_sec: int = 120, debug: bool = False) -> Dict:
@@ -254,59 +255,68 @@ class PricingService:
         return self._get_token_price_usd('eth', ts_iso)
 
     def _get_token_price_usd(self, token_address_or_eth: str, ts_iso: Optional[str]) -> Optional[float]:
-        """Get USD price for token at approx timestamp via cache + CoinGecko. token_address_or_eth can be 'eth' or an ERC-20 address."""
+        """Get USD price for token.
+        Order: DB cache -> external spot price (0x) -> None.
+        """
         try:
             if not ts_iso:
                 ts = int(time.time())
             else:
                 ts = int(datetime.fromisoformat(ts_iso.replace('Z', '+00:00')).timestamp())
-            # Bucket by hour
             bucket_dt = datetime.utcfromtimestamp(ts).replace(minute=0, second=0, microsecond=0)
             bucket_iso = bucket_dt.isoformat() + 'Z'
             key_addr = token_address_or_eth.lower()
-            # Try DB cache (skip for 'eth' we store as address 'eth')
             cached = self.repo.get_cached_token_price(key_addr, bucket_iso)
             if cached is not None:
                 return cached
 
-            # Fetch from CoinGecko
+            # External spot price (current) as fallback for MVP
+            if self.enable_price_api:
+                spot = self._fetch_spot_price_usd_via_zeroex(key_addr)
+                if spot is not None:
+                    # Cache under current hour bucket
+                    self.repo.upsert_token_price(key_addr, bucket_iso, float(spot), source='0x')
+                    return float(spot)
+            return None
+        except Exception as e:
+            print(f"Price lookup failed: {e}")
+            return None
+
+    def _fetch_spot_price_usd_via_zeroex(self, token_address_or_eth: str) -> Optional[float]:
+        """Fetch current USD price via 0x price API (sell 1 token for USDC).
+        Returns price in USD or None.
+        """
+        try:
             import requests
-            if key_addr == 'eth':
-                # /coins/ethereum/market_chart/range
-                url = 'https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range'
+            usdc = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+            weth = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
+            if token_address_or_eth == 'eth':
+                token = weth
+                decimals = 18
             else:
-                # /coins/ethereum/contract/{address}/market_chart/range
-                url = f'https://api.coingecko.com/api/v3/coins/ethereum/contract/{key_addr}/market_chart/range'
+                token = token_address_or_eth
+                decimals = self.stablecoins.get(token) or self.token_info.get(token, (18, ''))[0]
+            # Sell 1 token to get USDC price
+            sell_amount = str(10 ** int(decimals))
+            url = 'https://api.0x.org/swap/v1/price'
             params = {
-                'vs_currency': 'usd',
-                'from': ts - 900,
-                'to': ts + 900,
+                'sellToken': token,
+                'buyToken': usdc,
+                'sellAmount': sell_amount,
             }
             headers = {}
-            if getattr(config, 'COINGECKO_API_KEY', ''):
-                headers['x-cg-pro-api-key'] = config.COINGECKO_API_KEY
+            # Prefer ZEROX_SWAP_API_KEY; fallback to ZEROX_API_KEY if present
+            api_key = getattr(config, 'ZEROX_SWAP_API_KEY', '') or getattr(config, 'ZEROX_API_KEY', '')
+            if api_key:
+                headers['0x-api-key'] = api_key
             resp = requests.get(url, params=params, headers=headers, timeout=self.request_timeout)
             if resp.status_code != 200:
                 return None
             data = resp.json()
-            prices = data.get('prices') or []  # [[ms, price], ...]
-            if not prices:
-                return None
-            # Pick the closest to ts
-            best = None
-            best_diff = 1e18
-            for ms, price in prices:
-                diff = abs(ms / 1000 - ts)
-                if diff < best_diff:
-                    best_diff = diff
-                    best = float(price)
-            if best is None:
-                return None
-            # Cache and return
-            self.repo.upsert_token_price(key_addr, bucket_iso, best, source='coingecko')
-            return best
-        except Exception as e:
-            print(f"Price fetch failed: {e}")
+            # price = buyToken per 1 sellToken (i.e., USDC per token)
+            price = float(data.get('price')) if data.get('price') is not None else None
+            return price
+        except Exception:
             return None
 
 
