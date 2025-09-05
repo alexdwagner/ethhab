@@ -61,7 +61,7 @@ cp .env.example .env
 
 ```bash
 # Initialize Supabase schema
-python scripts/setup_supabase.py
+ python3 scripts/setup_supabase.py
 ```
 
 ### 4. Get API Keys
@@ -81,7 +81,7 @@ python scripts/setup_supabase.py
 **Option A: Full Stack (Recommended)**
 ```bash
 # Terminal 1: Start Python backend (default 8080)
-python app.py --port 8080
+ python3 app.py --port 8080
 
 # Terminal 2: Start NextJS frontend
 cd frontend
@@ -94,7 +94,7 @@ Visit http://localhost:3000 for the modern dashboard!
 
 **Option B: API Only**
 ```bash
-python app.py
+ python3 app.py
 ```
 Visit http://localhost:8080/api/whales for JSON data
 
@@ -184,17 +184,17 @@ Use the CLI to seed config and run bounded discovery without hanging:
 
 ```bash
 # Seed DEX routers / CEX addresses from JSON templates
-python scripts/smart_money_cli.py seed --routers sample_dex_routers.json --cex sample_cex_addresses.json
+ python3 scripts/smart_money_cli.py seed --routers sample_dex_routers.json --cex sample_cex_addresses.json
 
 # Run discovery with guardrails
-python scripts/smart_money_cli.py discover \
+ python3 scripts/smart_money_cli.py discover \
   --limit 100 \
   --hours 24 \
   --max-routers 5 \
   --time-budget 60
 
 # Offline (DB-only) mode when network is constrained
-python scripts/smart_money_cli.py discover --offline --limit 100
+ python3 scripts/smart_money_cli.py discover --offline --limit 100
 ```
 
 You can also tune via environment variables in `.env`:
@@ -222,13 +222,13 @@ Composite score calculated from:
 ### Local Development
 ```bash
 # Run tests
-python tests/test_basic.py
+ python3 -m unittest -v tests/test_basic.py
 
 # Development server
-python app.py --port 8080
+ python3 app.py --port 8080
 
 # Check configuration
-python app.py --config
+ python3 app.py --config
 ```
 
 ### Environment Variables

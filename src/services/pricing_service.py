@@ -289,9 +289,9 @@ class PricingService:
         try:
             import requests
             usdc = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
-            weth = '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2'
             if token_address_or_eth == 'eth':
-                token = weth
+                # Use native ETH shorthand for clarity with 0x
+                token = 'ETH'
                 decimals = 18
             else:
                 token = token_address_or_eth
@@ -303,12 +303,15 @@ class PricingService:
                 'sellToken': token,
                 'buyToken': usdc,
                 'sellAmount': sell_amount,
+                'chainId': 1,
             }
             headers = {}
             # Prefer ZEROX_SWAP_API_KEY; fallback to ZEROX_API_KEY if present
             api_key = getattr(config, 'ZEROX_SWAP_API_KEY', '') or getattr(config, 'ZEROX_API_KEY', '')
             if api_key:
                 headers['0x-api-key'] = api_key
+            # Use v2 semantics for consistency with newer 0x endpoints
+            headers['0x-version'] = 'v2'
             resp = requests.get(url, params=params, headers=headers, timeout=self.request_timeout)
             if resp.status_code != 200:
                 return None

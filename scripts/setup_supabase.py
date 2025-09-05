@@ -56,7 +56,7 @@ def main():
     print("\n🎉 Supabase setup complete!")
     print("\nNext steps:")
     print("1. Copy .env.example to .env and fill in your API keys")
-    print("2. Run: python app.py")
+    print("2. Run: python3 app.py")
     print("3. Visit: http://localhost:8080")
     
     return True
