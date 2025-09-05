@@ -39,8 +39,8 @@ class WhaleAPIHandler(BaseHTTPRequestHandler):
         if not whale_repository:
             raise ValueError(
                 "Supabase not configured. Please:\n"
-                "1. Set SUPABASE_URL and SUPABASE_ANON_KEY in .env\n"
-                "2. Run: python scripts/setup_supabase.py"
+                "1. Set SUPABASE_URL and key (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY) in .env\n"
+                "2. Run: python3 scripts/setup_supabase.py"
             )
         
         self.db = whale_repository

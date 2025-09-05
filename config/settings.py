@@ -81,8 +81,8 @@ class Config:
         if not cls.SUPABASE_URL:
             issues.append("SUPABASE_URL not set (Required)")
         
-        if not cls.SUPABASE_ANON_KEY:
-            issues.append("SUPABASE_ANON_KEY not set (Required)")
+        if not (cls.SUPABASE_ANON_KEY or cls.SUPABASE_SERVICE_ROLE_KEY):
+            issues.append("Either SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY must be set (Required)")
         
         # Required for whale scanning
         if not cls.ETHERSCAN_API_KEY:

@@ -13,8 +13,8 @@ class SupabaseClient:
     """Supabase database client wrapper"""
     
     def __init__(self):
-        if not config.SUPABASE_URL or not config.SUPABASE_ANON_KEY:
-            raise ValueError("Supabase credentials not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY")
+        if not config.SUPABASE_URL or not (config.SUPABASE_ANON_KEY or config.SUPABASE_SERVICE_ROLE_KEY):
+            raise ValueError("Supabase credentials not configured. Please set SUPABASE_URL and either SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY")
         
         # Prefer service role for backend writes (bypasses RLS where appropriate).
         # Falls back to anon key if service role is not provided.
@@ -74,7 +74,7 @@ class SupabaseClient:
                 return False
 
 # Create singleton instance
-supabase_client = SupabaseClient() if config.SUPABASE_URL and config.SUPABASE_ANON_KEY else None
+supabase_client = SupabaseClient() if (config.SUPABASE_URL and (config.SUPABASE_ANON_KEY or config.SUPABASE_SERVICE_ROLE_KEY)) else None
 
 if __name__ == "__main__":
     if supabase_client:

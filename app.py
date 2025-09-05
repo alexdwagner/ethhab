@@ -29,13 +29,24 @@ def run_server(port: int = None):
     print("🐋 Starting Whale Tracker Application")
     print("=" * 50)
     print(f"🌐 Server: http://{config.HOST}:{port}")
+    # Quick env visibility diagnostics (no secrets printed)
+    try:
+        import os
+        supa_env = {
+            'SUPABASE_URL_set': bool(os.getenv('SUPABASE_URL')),
+            'SUPABASE_SERVICE_ROLE_KEY_set': bool(os.getenv('SUPABASE_SERVICE_ROLE_KEY')),
+            'SUPABASE_ANON_KEY_set': bool(os.getenv('SUPABASE_ANON_KEY')),
+        }
+        print(f"🔎 Env: {supa_env}")
+    except Exception:
+        pass
     
     # Database info - Supabase only
     if supabase_client:
         print(f"🗄️  Database: Supabase PostgreSQL ✅")
     else:
         print(f"❌ Supabase not configured!")
-        print("Please run: python scripts/setup_supabase.py")
+        print("Please run: python3 scripts/setup_supabase.py")
         return
         
     print(f"🔑 API Keys: {'✅' if config.ETHERSCAN_API_KEY else '❌'} Etherscan, {'✅' if config.ALCHEMY_API_KEY else '❌'} Alchemy")
